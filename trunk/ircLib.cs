@@ -90,10 +90,20 @@ public class IrcBot
         ChanModes mode = new ChanModes();
         Loader load = new Loader();
         CTCP ctcp = new CTCP();
-        Users users = new Users();
+        UserControl users = new UserControl();
         httpRegex = new Regex(@"(?:http://(?:(?:(?:(?:(?:[a-zA-Z\d](?:(?:[a-zA-Z\d]|-)*[a-zA-Z\d])?)\.)*(?:[a-zA-Z](?:(?:[a-zA-Z\d]|-)*[a-zA-Z\d])?))|(?:(?:\d+)(?:\.(?:\d+)){3}))(?::(?:\d+))?)(?:/(?:(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[;:@&=])*)(?:/(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[;:@&=])*))*)(?:\?(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[;:@&=])*))?)?)|(?:ftp://(?:(?:(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[;?&=])*)(?::(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[;?&=])*))?@)?(?:(?:(?:(?:(?:[a-zA-Z\d](?:(?:[a-zA-Z\d]|-)*[a-zA-Z\d])?)\.)*(?:[a-zA-Z](?:(?:[a-zA-Z\d]|-)*[a-zA-Z\d])?))|(?:(?:\d+)(?:\.(?:\d+)){3}))(?::(?:\d+))?))(?:/(?:(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[?:@&=])*)(?:/(?:(?:(?:[a-zA-Z\d$\-_.+!*'(),]|(?:%[a-fA-F\d]{2}))|[?:@&=])*))*)))");
-        ThreadStart userThreadStart = new ThreadStart(users.watchUsers);
-        Thread userThread = new Thread(userThreadStart);
+        try
+        {
+
+            ThreadStart userThreadStart = new ThreadStart(users.userControl);
+            Thread userThread = new Thread(userThreadStart);
+            userThread.Start();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
+        }
+      
         while (true)
         {
             while ((inputLine = reader.ReadLine()) != null)
@@ -105,7 +115,7 @@ public class IrcBot
                     writer.WriteLine("JOIN " + channel);
                     writer.Flush();
                
-                 userThread.Start();
+                 
 
              }
                 else
@@ -533,12 +543,12 @@ public class HttpHeader : IrcBot
 
                     WebClient web = new WebClient();
                     byte[] bInHttpStream = web.DownloadData(text);
-                    string inHttpString = Encoding.Default.GetString(bInHttpStream);
-                    string[] data1 = Regex.Split(inHttpString, "<title>|<TITLE>");
-                    string[] titleContent = Regex.Split(data1[1], "</title>|</TITLE>");
+                    string inHttpString = Encoding.Default.GetString(bInHttpStream).Trim();
+                    string[] data1 = Regex.Split(inHttpString.Trim(), "<title>|<TITLE>");
+                    string[] titleContent = Regex.Split(data1[1].Trim(), "</title>|</TITLE>");
 
                     ChannelActions chanAct = new ChannelActions();
-                    chanAct.say("[" + titleContent[0] + "]");
+                    chanAct.say("[" + titleContent[0].Replace('\n',' ') + "]");
                 }
         }
         catch (Exception e)
@@ -551,40 +561,48 @@ public class HttpHeader : IrcBot
 
 }
 
-public class Users : IrcBot
+public class UserControl : IrcBot
 {
     Information info = new Information();
+    static ArrayList users = new ArrayList();
 
-
-    public void watchUsers()
+    public void userControl()
     {
-        ArrayList users = userList();
-    }
-    public ArrayList userList()
-    {
-        ArrayList userList;
-        return ( userList = info.users());
+        users = getUsers();
+        if (inputLine.Trim().IndexOf("QUIT") >= 0 || inputLine.Trim().IndexOf("PART") >= 0)
+            userPart();
+        if (inputLine.Trim().IndexOf("JOIN") >= 0)
+            userJoin();
 
     }
+
+    public ArrayList getUsers()
+    {
+        users.Add(info.users());
+        return users;
+    }
+   
     public void userPart()
-    {
-        ArrayList users = new ArrayList(userList());
+    {     
         int i = 0;
-        if (inputLine.IndexOf("QUIT") >= 0 || inputLine.IndexOf("PART") >= 0)
-            foreach (string text in users)
+        foreach (string text in UserControl.users)
             {
                 i++;
+                Console.WriteLine(text);
                 if (text == info.sender())
                 {
-                    users.RemoveAt(i);
+
+                    UserControl.users.RemoveAt(i);
                     Console.WriteLine(text);
                 }
                 else
                     Console.WriteLine("NEI");
             }
-      
 
-
+    }
+    public void userJoin()
+    {
+        UserControl.users.Add(info.sender());
     }
 }
 
